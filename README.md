@@ -1,5 +1,4 @@
-# discord-embed-fixer-bot
-Discord Embed Fixer Bot
+# Discord Embed Fixer Bot
 
 This Discord bot script is designed to bypass the restriction on Discord embeds for X (formerly Twitter) URLs by utilizing the FxTwitter and TwitFix projects. The bot monitors messages in a Discord server for X or Twitter URLs and automatically replaces them with corresponding FxTwitter or TwitFix URLs to restore the embed functionality. It also offers a variety of commands for interaction, including a Magic 8-Ball, random number generators, and coin selection from a predefined list.
 
