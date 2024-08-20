@@ -50,3 +50,11 @@ This Discord bot script is designed to bypass the restriction on Discord embeds 
 
 ## Usage:
 - Invite the bot to your server and use the `!xhelp` command to see the list of available commands. The bot will automatically start replacing X/Twitter URLs with FxTwitter or TwitFix URLs and will change its status every 5 minutes.
+
+## Consider a donation.
+
+BTC: `bc1qwjy0hl4z9c930kgy4nud2fp0nw8m6hzknvumgg`
+
+ETH: `0x0941D41Cd0Ee81bd79Dbe34840bB5999C124D3F0`
+
+SOL: `4cpdbmmp1hyTAstA3iUYdFbqeNBwjFmhQLfL5bMgf77z`
