@@ -1,3 +1,4 @@
+
 # -----------------------------------------------------------------------------
 # Discord Bot: OmniLinker
 #
@@ -41,9 +42,9 @@ from discord.ext import commands, tasks
 
 # Load environment variables
 load_dotenv()
-bot_token = os.getenv('discord_bot_token')
-pairs_file = os.getenv('pairs_file')
-log_file_name = os.getenv('log_file_name', 'log.txt')
+bot_token = os.getenv('DISCORD_BOT_TOKEN')
+pairs_file = os.getenv('PAIRS_FILE')
+log_file_name = os.getenv('LOG_FILE_NAME', 'log.txt')
 CHANNEL_ID = int(os.getenv('DISCORD_CHANNEL_ID'))
 WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
 item_mapping_json_path = os.getenv('ITEM_MAPPING_JSON_PATH')
@@ -56,6 +57,7 @@ excluded_coins = ['LSETH', 'CBETH', 'WBTC', 'PAX', 'PYUSD', 'DAI', 'GUSD', 'USDT
 crypto_or_custom_stats = "crypto"
 use_ffxiv_universalis_api = True
 items_per_page = 20  # or any number of items you want per page
+UNIVERSALIS_API_URL = 'https://universalis.app/api/v2'
 
 # Setting up intents
 intents = discord.Intents.default()
@@ -116,6 +118,9 @@ statuses = [
 # Pairs in memory
 traded_pairs = []
 
+# Item mapping in memory
+item_mapping = {}
+
 # Function to format prices with commas
 def format_price_with_commas(price):
     return f"{int(price):,}"
@@ -156,15 +161,14 @@ def load_pairs():
     except FileNotFoundError:
         print(f'Pairs file {pairs_file} not found.')
 
-# Load item names and codes from the JSON file using the path from the .env file
-if use_ffxiv_universalis_api:
-    UNIVERSALIS_API_URL = 'https://universalis.app/api/v2'
-
+# Load item names and codes from the JSON file into memory
+def load_item_mapping():
+    global item_mapping
     try:
         with open(item_mapping_json_path, 'r') as file:
-            item_mapping = json.load(file)
-            item_mapping = {value.lower(): key for key, value in item_mapping.items()}
-            print(f"Loaded {len(item_mapping)} items from JSON.")
+            raw_mapping = json.load(file)
+            item_mapping = {value.lower(): key for key, value in raw_mapping.items()}
+            print(f"Loaded {len(item_mapping)} items into memory.")
     except FileNotFoundError:
         print(f"Error: The file {item_mapping_json_path} was not found.")
         item_mapping = {}
@@ -287,23 +291,6 @@ async def update_embed(message, user, item_name, all_listings, page):
     await message.edit(embed=embed)
     message_pages[message.id] = (page, item_name, all_listings)
 
-# Magic 8 Ball responses
-positive_responses = [
-    "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes – definitely.",
-    "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.",
-    "Yes.", "Signs point to yes."
-]
-
-negative_responses = [
-    "Don't count on it.", "My reply is no.", "My sources say no.",
-    "Outlook not so good.", "Very doubtful."
-]
-
-neutral_responses = [
-    "Reply hazy, try again.", "Ask again later.", "Better not tell you now.",
-    "Cannot predict now.", "Concentrate and ask again."
-]
-
 @bot.event
 async def on_ready():
     bot.http._session = aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=ssl_context))
@@ -311,6 +298,7 @@ async def on_ready():
     if use_pairs_file_feature:
         refresh_pairs.start()
     if use_ffxiv_universalis_api:
+        load_item_mapping()
         print("FFXIV Universalis API is enabled.")
     print(f'Bot is online!')
 
@@ -725,6 +713,22 @@ async def eight_ball(ctx, *, question: str):
         color=color
     )
     await send_embed(ctx, embed)
+
+positive_responses = [
+    "It is certain.", "It is decidedly so.", "Without a doubt.", "Yes – definitely.",
+    "You may rely on it.", "As I see it, yes.", "Most likely.", "Outlook good.",
+    "Yes.", "Signs point to yes."
+]
+
+negative_responses = [
+    "Don't count on it.", "My reply is no.", "My sources say no.",
+    "Outlook not so good.", "Very doubtful."
+]
+
+neutral_responses = [
+    "Reply hazy, try again.", "Ask again later.", "Better not tell you now.",
+    "Cannot predict now.", "Concentrate and ask again."
+]
 
 @bot.command(name='random')
 async def random_command(ctx):
