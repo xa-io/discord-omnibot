@@ -529,7 +529,16 @@ async def on_message(message):
         )
 
         try:
-            response = requests.head(updated_url)
+            # For Twitter/X, we still do a GET request to verify
+            response = requests.get(
+                updated_url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                       "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                       "Chrome/103.0.0.0 Safari/537.36"},
+                allow_redirects=True,
+                stream=True
+            )
+
             if response.ok:
                 formatted_message = f"[{message.author.display_name}]({updated_url}): {message.content.replace(original_url, '').strip()}"
                 files = [await attachment.to_file() for attachment in message.attachments]
@@ -546,6 +555,7 @@ async def on_message(message):
                     pass
             else:
                 print(f"URL returned non-OK status: {response.status_code}")
+            response.close()
         except requests.RequestException as e:
             print(f"Error fetching URL: {e}")
 
@@ -553,9 +563,7 @@ async def on_message(message):
     # --------------------------------------------------------
     # URL processing logic for Reddit, TikTok, Instagram links
     # --------------------------------------------------------
-    regex_social = re.compile(
-        r'(https?:\/\/(www\.)?(reddit|tiktok|instagram)\.com\/[\w\d\-\_\/\?\=\&\.]*)'
-    )
+    regex_social = re.compile(r'(https?://(www\.)?(reddit|tiktok|instagram)\.com/[^\s]+)')
     match_social = regex_social.search(message.content)
     if match_social:
         original_url_social = match_social.group(0)
@@ -564,15 +572,40 @@ async def on_message(message):
         # Check which domain we matched, then replace accordingly
         if 'reddit.com' in original_url_social:
             updated_url_social = updated_url_social.replace('reddit.com', 'rxddit.com')
+            
+            # ----------------------------------------------------
+            # SKIP verifying for Reddit (to avoid 403).
+            # ----------------------------------------------------
+            formatted_message = (
+                f"[{message.author.display_name}]({updated_url_social}): "
+                f"{message.content.replace(original_url_social, '').strip()}"
+            )
+            files = [await attachment.to_file() for attachment in message.attachments]
+            await message.delete()
+            bot_message = await message.channel.send(formatted_message, files=files)
+            await bot_message.add_reaction('♻️')
+            message_author_map[bot_message.id] = message.author.id
+            log_link(message.author.display_name, original_url_social)
+
+            # Remove reaction after 30s
+            await asyncio.sleep(30)
+            try:
+                await bot_message.remove_reaction('♻️', bot.user)
+            except discord.errors.NotFound:
+                pass
+
         elif 'tiktok.com' in original_url_social:
             updated_url_social = updated_url_social.replace('tiktok.com', 'vxtiktok.com')
-        elif 'instagram.com' in original_url_social:
-            updated_url_social = updated_url_social.replace('instagram.com', 'ddinstagram.com')
-
-        # If we did update the URL, try to re-post it
-        if updated_url_social != original_url_social:
+            # For TikTok, we still do a GET request if you want
             try:
-                response = requests.head(updated_url_social)
+                response = requests.get(
+                    updated_url_social,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                           "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                           "Chrome/103.0.0.0 Safari/537.36"},
+                    allow_redirects=True,
+                    stream=True
+                )
                 if response.ok:
                     formatted_message = (
                         f"[{message.author.display_name}]({updated_url_social}): "
@@ -592,6 +625,41 @@ async def on_message(message):
                         pass
                 else:
                     print(f"URL returned non-OK status: {response.status_code}")
+                response.close()
+            except requests.RequestException as e:
+                print(f"Error fetching URL: {e}")
+
+        elif 'instagram.com' in original_url_social:
+            updated_url_social = updated_url_social.replace('instagram.com', 'ddinstagram.com')
+            try:
+                response = requests.get(
+                    updated_url_social,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                                           "AppleWebKit/537.36 (KHTML, like Gecko) "
+                                           "Chrome/103.0.0.0 Safari/537.36"},
+                    allow_redirects=True,
+                    stream=True
+                )
+                if response.ok:
+                    formatted_message = (
+                        f"[{message.author.display_name}]({updated_url_social}): "
+                        f"{message.content.replace(original_url_social, '').strip()}"
+                    )
+                    files = [await attachment.to_file() for attachment in message.attachments]
+                    await message.delete()
+                    bot_message = await message.channel.send(formatted_message, files=files)
+                    await bot_message.add_reaction('♻️')
+                    message_author_map[bot_message.id] = message.author.id
+                    log_link(message.author.display_name, original_url_social)
+
+                    await asyncio.sleep(30)
+                    try:
+                        await bot_message.remove_reaction('♻️', bot.user)
+                    except discord.errors.NotFound:
+                        pass
+                else:
+                    print(f"URL returned non-OK status: {response.status_code}")
+                response.close()
             except requests.RequestException as e:
                 print(f"Error fetching URL: {e}")
 
@@ -618,7 +686,6 @@ async def on_message(message):
     # Process other bot commands in any channel
     # --------------------------------------------------------
     await bot.process_commands(message)
-
 
 @bot.event
 async def on_reaction_add(reaction, user):
