@@ -3,7 +3,7 @@
 # Discord Bot: OmniLinker
 #
 # OmniLinker is a versatile Discord bot that enhances your server by:
-# 1. Restoring rich embeds for Twitter/X links, ensuring your posts display correctly.
+# 1. Restoring rich embeds for X/Reddit/Tiktok/Instagram links, ensuring your posts display correctly.
 # 2. Monitoring volatile cryptocurrency prices on Coinbase, providing real-time alerts.
 # 3. Offering FFXIV Universalis API integration, allowing you to search for in-game items.
 #
@@ -130,7 +130,7 @@ def log_link(author, link):
     log_path = os.path.join(script_dir, log_file_name)
     timestamp = datetime.now().strftime('%m-%d-%y %H:%M:%S')
     with open(log_path, 'a', encoding='utf-8') as log_file:
-        log_file.write(f'{timestamp}\n')
+        log_file.write(f'{timestamp} - {link}\n')
 
 # Function to get the number of lines in the log file
 def get_log_count():
@@ -362,17 +362,17 @@ def get_emoji(change):
     elif abs(change) < 2:
         return "◼"
     elif abs(change) < 3:
-        return "🟫"
-    elif abs(change) < 4:
-        return "🟪"
-    elif abs(change) < 5:
-        return "🟦"
-    elif abs(change) < 6:
         return "🟩"
-    elif abs(change) < 7:
+    elif abs(change) < 4:
+        return "🟦"
+    elif abs(change) < 5:
+        return "🟪"
+    elif abs(change) < 6:
         return "🟨"
-    elif abs(change) < 8:
+    elif abs(change) < 7:
         return "🟧"
+    elif abs(change) < 8:
+        return "🟫"
     elif abs(change) < 9:
         return "🟥"
     else:
@@ -384,7 +384,7 @@ def get_sign(change):
 
 def is_price_alert(content):
     parts = content.split()
-    if len(parts) >= 4 and (parts[0][0] in ['🔹', '🔸']) and parts[0][1] in "◼🟫🟪🟦🟩🟨🟧🟥💥":
+    if len(parts) >= 4 and (parts[0][0] in ['🔹', '🔸']) and parts[0][1] in "▪️◼🟩🟦🟪🟨🟧🟫🟥💥":
         return True
     return False
 
@@ -515,12 +515,18 @@ async def random_coin_list_command(ctx):
 
 @bot.event
 async def on_message(message):
+    # --------------------------------------------------------
     # URL processing logic for X (formerly Twitter) links
+    # --------------------------------------------------------
     regex = re.compile(r'(https:\/\/x\.com\/[\w\d\-]+\/status\/[\w\d\-\/\?\=\&]*)|(https:\/\/twitter\.com\/[\w\d\-]+\/status\/[\w\d\-\/\?\=\&]*)')
     match = regex.search(message.content)
     if match:
         original_url = match.group(0)
-        updated_url = original_url.replace('x.com', 'fixupx.com') if 'x.com' in original_url else original_url.replace('twitter.com', 'fxtwitter.com')
+        updated_url = (
+            original_url.replace('x.com', 'fixupx.com')
+            if 'x.com' in original_url
+            else original_url.replace('twitter.com', 'fxtwitter.com')
+        )
 
         try:
             response = requests.head(updated_url)
@@ -532,24 +538,73 @@ async def on_message(message):
                 await bot_message.add_reaction('♻️')
                 message_author_map[bot_message.id] = message.author.id
                 log_link(message.author.display_name, original_url)
+
                 await asyncio.sleep(30)
                 try:
                     await bot_message.remove_reaction('♻️', bot.user)
                 except discord.errors.NotFound:
                     pass
             else:
-                print(f'URL returned non-OK status: {response.status_code}')
+                print(f"URL returned non-OK status: {response.status_code}")
         except requests.RequestException as e:
-            print(f'Error fetching URL: {e}')
+            print(f"Error fetching URL: {e}")
 
+
+    # --------------------------------------------------------
+    # URL processing logic for Reddit, TikTok, Instagram links
+    # --------------------------------------------------------
+    regex_social = re.compile(
+        r'(https?:\/\/(www\.)?(reddit|tiktok|instagram)\.com\/[\w\d\-\_\/\?\=\&\.]*)'
+    )
+    match_social = regex_social.search(message.content)
+    if match_social:
+        original_url_social = match_social.group(0)
+        updated_url_social = original_url_social  # Default: no change
+
+        # Check which domain we matched, then replace accordingly
+        if 'reddit.com' in original_url_social:
+            updated_url_social = updated_url_social.replace('reddit.com', 'rxddit.com')
+        elif 'tiktok.com' in original_url_social:
+            updated_url_social = updated_url_social.replace('tiktok.com', 'vxtiktok.com')
+        elif 'instagram.com' in original_url_social:
+            updated_url_social = updated_url_social.replace('instagram.com', 'ddinstagram.com')
+
+        # If we did update the URL, try to re-post it
+        if updated_url_social != original_url_social:
+            try:
+                response = requests.head(updated_url_social)
+                if response.ok:
+                    formatted_message = (
+                        f"[{message.author.display_name}]({updated_url_social}): "
+                        f"{message.content.replace(original_url_social, '').strip()}"
+                    )
+                    files = [await attachment.to_file() for attachment in message.attachments]
+                    await message.delete()
+                    bot_message = await message.channel.send(formatted_message, files=files)
+                    await bot_message.add_reaction('♻️')
+                    message_author_map[bot_message.id] = message.author.id
+                    log_link(message.author.display_name, original_url_social)
+
+                    await asyncio.sleep(30)
+                    try:
+                        await bot_message.remove_reaction('♻️', bot.user)
+                    except discord.errors.NotFound:
+                        pass
+                else:
+                    print(f"URL returned non-OK status: {response.status_code}")
+            except requests.RequestException as e:
+                print(f"Error fetching URL: {e}")
+
+
+    # --------------------------------------------------------
     # Monitor the specified channel for alerts, including messages from webhooks
+    # --------------------------------------------------------
     if message.channel.id == CHANNEL_ID:
         content = message.content
 
-        # Check if the message is a price alert
         if is_price_alert(content):
             if show_pricing_alerts:
-                print(f"Detected price alert: {content}")  # Debug statement
+                print(f"Detected price alert: {content}")
             try:
                 process_message(content, message.created_at)
             except Exception as e:
@@ -557,10 +612,13 @@ async def on_message(message):
                 await post_error_to_webhook(f"Error processing message: {e}")
         else:
             if show_pricing_alerts:
-                print(f"Ignored message: {content}")  # Debug statement
+                print(f"Ignored message: {content}")
 
+    # --------------------------------------------------------
     # Process other bot commands in any channel
+    # --------------------------------------------------------
     await bot.process_commands(message)
+
 
 @bot.event
 async def on_reaction_add(reaction, user):
