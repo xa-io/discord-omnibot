@@ -630,13 +630,28 @@ async def on_message(message):
                 print(f"Error fetching URL: {e}")
 
         elif 'instagram.com' in original_url_social:
+            # Replace domain
             updated_url_social = updated_url_social.replace('instagram.com', 'ddinstagram.com')
+            
+            # If there's no '?' in the updated link, ddinstagram often fails on reels
+            # so append a dummy parameter like '?force=1'
+            if '?' not in updated_url_social:
+                # If the link already ends with a '/', we can keep that slash
+                # or add one if needed. Then add '?force=1'.
+                if not updated_url_social.endswith('/'):
+                    updated_url_social += '/'
+                updated_url_social += '?force=1'
+            
             try:
                 response = requests.get(
                     updated_url_social,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                                           "AppleWebKit/537.36 (KHTML, like Gecko) "
-                                           "Chrome/103.0.0.0 Safari/537.36"},
+                    headers={
+                        "User-Agent": (
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/103.0.0.0 Safari/537.36"
+                        )
+                    },
                     allow_redirects=True,
                     stream=True
                 )
