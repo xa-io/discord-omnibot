@@ -1,39 +1,77 @@
-
-# -----------------------------------------------------------------------------
-# Discord Bot: OmniLinker
+############################################################################################################################
+# 
+#   ██████╗ ███╗   ███╗███╗   ██╗██╗██████╗  ██████╗ ████████╗
+#  ██╔═══██╗████╗ ████║████╗  ██║██║██╔══██╗██╔═══██╗╚══██╔══╝
+#  ██║   ██║██╔████╔██║██╔██╗ ██║██║██████╔╝██║   ██║   ██║   
+#  ██║   ██║██║╚██╔╝██║██║╚██╗██║██║██╔══██╗██║   ██║   ██║   
+#  ╚██████╔╝██║ ╚═╝ ██║██║ ╚████║██║██████╔╝╚██████╔╝   ██║   
+#   ╚═════╝ ╚═╝     ╚═╝╚═╝  ╚═══╝╚═╝╚═════╝  ╚═════╝    ╚═╝   
 #
-# OmniLinker is a versatile Discord bot that enhances your server by:
-# 1. Restoring rich embeds for X/Reddit/Tiktok/Instagram links, ensuring your posts display correctly.
-# 2. Monitoring volatile cryptocurrency prices on Coinbase, providing real-time alerts.
-# 3. Offering FFXIV Universalis API integration, allowing you to search for in-game items.
+# Multi-platform Discord bot for link embed fixing, crypto monitoring, and FFXIV item searches
 #
+# OmniBot is a versatile Discord bot that enhances your server experience by automatically fixing embeds for social
+# media links (X/Twitter, Reddit, TikTok, Instagram), monitoring cryptocurrency price volatility on Coinbase, and
+# providing advanced FFXIV Universalis API integration for in-game item searches across all data centers.
+#
+# Core Features:
+# • Multi-Platform Link Replacement - Converts X/Twitter, Reddit, TikTok, and Instagram URLs to embed-friendly alternatives
+# • Cryptocurrency Monitoring - Provides real-time alerts for volatile cryptocurrency prices on Coinbase
+# • Advanced FFXIV Item Search - Amount-based and price-limit queries across NA, EU, OCE, and JP data centers
+# • Interactive Commands - Magic 8-Ball, random generators, coin selection, and Dalamud key fetching
+# • User Interaction - Delete bot messages via emoji reactions, automatic status rotation
+# • Comprehensive Logging - Maintains logs of all corrected URLs and bot interactions
+#
+# Important Note: Requires Discord bot token and proper .env configuration. See installation instructions below.
+#
+# OmniBot v1.1
+# Multi-platform Discord bot for link embed fixing, crypto monitoring, and FFXIV item searches
+# Created by: https://github.com/xa-io
+# Last Updated: 2026-01-13 09:45:00
+#
+# ## Release Notes ##
+#
+# v1.1 - Added support for hard-coded amounts and price limits in !search command
+# v1.0 - Initial release with multi-platform support and advanced FFXIV search features
+#
+############################################################################################################################
 # Installation:
-# 1. Clone this repo.
+# 1. Clone the repository from https://github.com/xa-io/discord-omnibot
 # 2. Install Python 3.8+ and run:
 #    pip install discord.py python-dotenv requests aiohttp
-# 3. Create a `.env` file with your bot token:
+# 3. Create a .env file with the following variables:
 #    DISCORD_BOT_TOKEN=your_discord_bot_token_here
+#    DISCORD_CHANNEL_ID=your_channel_id_here
+#    PAIRS_FILE=path_to_your_pairs_file_here
+#    WEBHOOK_URL=your_discord_webhook_url_here
+#    ITEM_MAPPING_JSON_PATH=path_to_your_item_mapping_json_file_here
+#    LOG_FILE_NAME=log.txt
 #
 # Usage:
-# 1. Run the bot:
-#    python bot.py
-# 2. The bot auto-corrects Twitter/X links in Discord.
-# 3. Commands:
-#    - !xhelp: Show help
-#    - !status: Show bot status
-#    - !stats: Show link correction count
-#    - !8ball <question>: Ask the 8-ball
-#    - !random: Random number (1-1000)
-#    - !randomp: Random percentage (1%-100%)
-#    - !randomcoin: Random Coinbase coin
-#    - !randomcoinlist: List all random coins
-#    - !search <item>: Search for an FFXIV item using Universalis API
+# 1. Run the bot: python bot.py
+# 2. The bot will automatically fix social media links in Discord
+# 3. Use !xhelp to see all available commands
 #
-# Files:
-# - bot.py: Main bot script
-# - log.txt: Corrected links log
-# - .env: Environment variables
-# -----------------------------------------------------------------------------
+# Available Commands:
+# - !xhelp: Show help and command list
+# - !status: Show bot's current status
+# - !stats: Display number of links corrected
+# - !8ball <question>: Ask the Magic 8-Ball
+# - !random: Generate random number (1-1000)
+# - !randomp: Generate random percentage (1%-100%)
+# - !randomcoin: Pick random Coinbase cryptocurrency
+# - !randomcoinlist: List all available random coins
+# - !coin <symbol>: Show last 10 alerts for specific coin
+# - !last10: Display last 10 volatile coins
+# - !search <item>: Search FFXIV item across all regions
+# - !search <region> <item>: Search in specific region (NA/EU/OCE/JP)
+# - !search <amount> <item>: Find cheapest way to buy X items
+# - !search <item> <price>: Find items under price limit
+# - !howtosearch or !hts: Learn how to use search command
+# - !keys: Show current Dalamud keys from Kamori API
+#
+# Files Generated:
+# - log.txt: Corrected links log with timestamps
+############################################################################################################################
 
 import os, ssl, re, atexit, random, signal, aiohttp, asyncio, discord, requests, json
 from datetime import datetime
@@ -48,6 +86,10 @@ log_file_name = os.getenv('LOG_FILE_NAME', 'log.txt')
 CHANNEL_ID = int(os.getenv('DISCORD_CHANNEL_ID'))
 WEBHOOK_URL = os.getenv('DISCORD_WEBHOOK_URL')
 item_mapping_json_path = os.getenv('ITEM_MAPPING_JSON_PATH')
+
+###########################################
+#### Start of Configuration Parameters ####
+###########################################
 
 # Configuration Settings
 use_pairs_file_feature = True
@@ -115,6 +157,10 @@ statuses = [
     "Bitcoin Market Genius", "Crypto Link Analyst", "Embed Tactician", "Tweet Optimizer"
 ]
 
+#########################################
+#### End of Configuration Parameters ####
+#########################################
+
 # Pairs in memory
 traded_pairs = []
 
@@ -174,10 +220,62 @@ def load_item_mapping():
         item_mapping = {}
 
 @bot.command(name='search')
-async def search_item(ctx, *, item_name):
+async def search_item(ctx, *, search_query):
+    # Parse region, amount, item name, and price limit from search query
+    parts = search_query.split()
+    
+    # Default to searching all regions
+    regions = {
+        'NA': ['Aether', 'Crystal', 'Dynamis', 'Primal'],
+        'EU': ['Chaos', 'Light'],
+        'OCE': ['Materia'],
+        'JP': ['Elemental', 'Gaia', 'Mana', 'Meteor']
+    }
+    
+    region_code = None
+    amount = None
+    price_limit = None
+    item_name = None
+    search_mode = 'normal'  # normal, amount, or price_limit
+    
+    idx = 0
+    
+    # Check if first word is a region code
+    if len(parts) > 0 and parts[0].upper() in regions:
+        region_code = parts[0].upper()
+        data_centers = regions[region_code]
+        idx = 1
+    else:
+        data_centers = ['Aether', 'Crystal', 'Dynamis', 'Primal', 'Chaos', 'Light', 'Materia', 'Elemental', 'Gaia', 'Mana', 'Meteor']
+    
+    # Check if next word is a number (amount)
+    if idx < len(parts) and parts[idx].isdigit():
+        amount = int(parts[idx])
+        search_mode = 'amount'
+        idx += 1
+    
+    # Check if last word is a number (price limit)
+    if len(parts) > idx and parts[-1].isdigit() and amount is None:
+        price_limit = int(parts[-1])
+        search_mode = 'price_limit'
+        item_name = ' '.join(parts[idx:-1])
+    else:
+        # Everything else is the item name
+        item_name = ' '.join(parts[idx:])
+    
+    if not item_name or item_name.strip() == '':
+        try:
+            await ctx.message.delete()
+        except discord.errors.NotFound:
+            pass
+        no_results_message = await ctx.send(f"Please specify an item name!")
+        await asyncio.sleep(5)
+        await no_results_message.delete()
+        return
+    
     item_name_lower = item_name.lower()
     item_id = item_mapping.get(item_name_lower)
-    print(f"Searching for item: {item_name}, found ID: {item_id}")
+    print(f"Searching for item: {item_name}, Mode: {search_mode}, Amount: {amount}, Price Limit: {price_limit}, ID: {item_id}")
 
     if not item_id:
         try:
@@ -188,9 +286,6 @@ async def search_item(ctx, *, item_name):
         await asyncio.sleep(5)
         await no_results_message.delete()
         return
-
-    # Data centers to check
-    data_centers = ['Aether', 'Crystal', 'Dynamis', 'Primal', 'Chaos', 'Light', 'Shadow', 'Materia', 'Elemental', 'Gaia', 'Mana', 'Meteor']
 
     all_listings = []
     for dc in data_centers:
@@ -209,7 +304,143 @@ async def search_item(ctx, *, item_name):
         return
 
     all_listings = sorted(all_listings, key=lambda x: x['pricePerUnit'])
-    await display_page(ctx, item_name, all_listings, 0)
+    
+    # Display based on search mode
+    if search_mode == 'amount':
+        await display_amount_search(ctx, item_name, all_listings, amount, region_code)
+    elif search_mode == 'price_limit':
+        await display_price_limit_search(ctx, item_name, all_listings, price_limit, region_code)
+    else:
+        await display_page(ctx, item_name, all_listings, 0, search_mode='normal')
+
+async def display_amount_search(ctx, item_name, all_listings, amount, region_code):
+    """Display amount-based search results - page 0 is summary, page 1+ are detailed listings"""
+    # Calculate cheapest way to buy the specified amount
+    purchases = []
+    remaining = amount
+    total_cost = 0
+    
+    for listing in all_listings:
+        if remaining <= 0:
+            break
+        
+        quantity = min(listing['quantity'], remaining)
+        cost = quantity * listing['pricePerUnit']
+        total_cost += cost
+        remaining -= quantity
+        
+        # Group by region for summary
+        region = None
+        dc = listing['data_center']
+        if dc in ['Aether', 'Crystal', 'Dynamis', 'Primal']:
+            region = 'NA'
+        elif dc in ['Chaos', 'Light']:
+            region = 'EU'
+        elif dc in ['Materia']:
+            region = 'OCE'
+        elif dc in ['Elemental', 'Gaia', 'Mana', 'Meteor']:
+            region = 'JP'
+        
+        purchases.append({
+            'region': region,
+            'dc': dc,
+            'world': listing['worldName'],
+            'quantity': quantity,
+            'price': listing['pricePerUnit'],
+            'cost': cost,
+            'listing': listing
+        })
+    
+    # Create summary by region
+    region_summary = {}
+    for purchase in purchases:
+        region = purchase['region']
+        if region not in region_summary:
+            region_summary[region] = {
+                'quantity': 0,
+                'max_price': 0,
+                'total_cost': 0
+            }
+        region_summary[region]['quantity'] += purchase['quantity']
+        region_summary[region]['max_price'] = max(region_summary[region]['max_price'], purchase['price'])
+        region_summary[region]['total_cost'] += purchase['cost']
+    
+    # Store data for pagination
+    search_data = {
+        'mode': 'amount',
+        'amount': amount,
+        'total_cost': total_cost,
+        'region_summary': region_summary,
+        'purchases': purchases,
+        'region_filter': region_code
+    }
+    
+    await display_page(ctx, item_name, all_listings, 0, search_mode='amount', search_data=search_data)
+
+async def display_price_limit_search(ctx, item_name, all_listings, price_limit, region_code):
+    """Display price-limit search results - page 0 is summary, page 1+ are detailed listings"""
+    # Calculate how many items can be bought under price limit
+    purchases = []
+    total_quantity = 0
+    total_cost = 0
+    
+    for listing in all_listings:
+        if listing['pricePerUnit'] > price_limit:
+            break
+        
+        quantity = listing['quantity']
+        cost = quantity * listing['pricePerUnit']
+        total_cost += cost
+        total_quantity += quantity
+        
+        # Group by region for summary
+        region = None
+        dc = listing['data_center']
+        if dc in ['Aether', 'Crystal', 'Dynamis', 'Primal']:
+            region = 'NA'
+        elif dc in ['Chaos', 'Light']:
+            region = 'EU'
+        elif dc in ['Materia']:
+            region = 'OCE'
+        elif dc in ['Elemental', 'Gaia', 'Mana', 'Meteor']:
+            region = 'JP'
+        
+        purchases.append({
+            'region': region,
+            'dc': dc,
+            'world': listing['worldName'],
+            'quantity': quantity,
+            'price': listing['pricePerUnit'],
+            'cost': cost,
+            'listing': listing
+        })
+    
+    # Create summary by region
+    region_summary = {}
+    for purchase in purchases:
+        region = purchase['region']
+        if region not in region_summary:
+            region_summary[region] = {
+                'quantity': 0,
+                'max_price': 0,
+                'total_cost': 0
+            }
+        region_summary[region]['quantity'] += purchase['quantity']
+        region_summary[region]['max_price'] = max(region_summary[region]['max_price'], purchase['price'])
+        region_summary[region]['total_cost'] += purchase['cost']
+    
+    # Store data for pagination
+    search_data = {
+        'mode': 'price_limit',
+        'price_limit': price_limit,
+        'total_quantity': total_quantity,
+        'total_cost': total_cost,
+        'region_summary': region_summary,
+        'purchases': purchases,
+        'region_filter': region_code
+    }
+    
+    await display_page(ctx, item_name, all_listings, 0, search_mode='price_limit', search_data=search_data)
 
 async def fetch_item_data(item_id, data_center):
     async with aiohttp.ClientSession() as session:
@@ -217,42 +448,119 @@ async def fetch_item_data(item_id, data_center):
             data = await response.json()
             return data
 
-async def display_page(ctx, item_name, all_listings, page):
-    start = page * items_per_page
-    end = start + items_per_page
-    top_listings = all_listings[start:end]
+async def display_page(ctx, item_name, all_listings, page, search_mode='normal', search_data=None):
+    embed = None
+    
+    # Page 0 for amount/price_limit modes shows summary
+    if search_mode in ['amount', 'price_limit'] and page == 0:
+        if search_mode == 'amount':
+            # Display amount summary
+            region_summary = search_data['region_summary']
+            total_cost = search_data['total_cost']
+            amount = search_data['amount']
+            
+            embed = discord.Embed(
+                title=f"Search Results for {amount} {item_name.capitalize()}",
+                description=f"**Total Cost:** {total_cost:,} gil",
+                color=discord.Color.green()
+            )
+            
+            for region in ['NA', 'EU', 'OCE', 'JP']:
+                if region in region_summary:
+                    summary = region_summary[region]
+                    field_value = (
+                        f"**Quantity:** {summary['quantity']}\n"
+                        f"**Max Price:** {summary['max_price']:,} gil\n"
+                        f"**Total Cost:** {summary['total_cost']:,} gil"
+                    )
+                    embed.add_field(name=f"**{region}**", value=field_value, inline=True)
+        
+        elif search_mode == 'price_limit':
+            # Display price limit summary
+            region_summary = search_data['region_summary']
+            total_quantity = search_data['total_quantity']
+            total_cost = search_data['total_cost']
+            price_limit = search_data['price_limit']
+            
+            embed = discord.Embed(
+                title=f"Search Results for {item_name.capitalize()} under {price_limit:,} gil",
+                description=f"**Total Available:** {total_quantity} items for {total_cost:,} gil",
+                color=discord.Color.purple()
+            )
+            
+            for region in ['NA', 'EU', 'OCE', 'JP']:
+                if region in region_summary:
+                    summary = region_summary[region]
+                    field_value = (
+                        f"**Quantity:** {summary['quantity']}\n"
+                        f"**Max Price:** {summary['max_price']:,} gil\n"
+                        f"**Total Cost:** {summary['total_cost']:,} gil"
+                    )
+                    embed.add_field(name=f"**{region}**", value=field_value, inline=True)
+    
+    else:
+        # Display normal listing page or detail pages for amount/price_limit
+        # For amount/price_limit modes, page 1+ shows details (adjust index)
+        if search_mode in ['amount', 'price_limit']:
+            # Use purchases list for detailed view
+            if search_data and 'purchases' in search_data:
+                start = (page - 1) * items_per_page
+                end = start + items_per_page
+                top_listings = [p['listing'] for p in search_data['purchases'][start:end]]
+            else:
+                top_listings = []
+        else:
+            start = page * items_per_page
+            end = start + items_per_page
+            top_listings = all_listings[start:end]
 
-    if top_listings:
-        quantities = [f"{listing['quantity']}" for listing in top_listings]
-        prices = [f"{listing['pricePerUnit']:,}" for listing in top_listings]
-        dc_worlds = [f"{listing['data_center']} - {listing['worldName']}" for listing in top_listings]
+        if top_listings:
+            quantities = [f"{listing['quantity']}" for listing in top_listings]
+            prices = [f"{listing['pricePerUnit']:,}" for listing in top_listings]
+            dc_worlds = [f"{listing['data_center']} - {listing['worldName']}" for listing in top_listings]
 
-        embed = discord.Embed(
-            title=f"{item_name.capitalize()} - pg.{page + 1}", 
-            color=discord.Color.blue()
-        )
-        embed.add_field(name="#", value="\n".join(quantities), inline=True)
-        embed.add_field(name="Cost", value="\n".join(prices), inline=True)
-        embed.add_field(name="Location", value="\n".join(dc_worlds), inline=True)
+            # Determine region text
+            region_text = "Showing results for all servers"
+            if search_data and search_data.get('region_filter'):
+                region_text = f"Showing results for {search_data['region_filter']}"
+            
+            embed = discord.Embed(
+                title=f"{item_name.capitalize()} - pg.{page + 1}", 
+                description=region_text,
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="#", value="\n".join(quantities), inline=True)
+            embed.add_field(name="Cost", value="\n".join(prices), inline=True)
+            embed.add_field(name="Location", value="\n".join(dc_worlds), inline=True)
 
+    if embed:
         embed.set_footer(text=f"Requested by {ctx.author.display_name}", icon_url=ctx.author.avatar.url)
 
         try:
             await ctx.message.delete()
         except discord.errors.NotFound:
-            pass  # Message is already deleted or doesn't exist
+            pass
 
         bot_message = await ctx.send(embed=embed)
         await bot_message.add_reaction('♻️')
-        if len(all_listings) > items_per_page:
+        
+        # Add pagination arrows if needed
+        total_pages = 1
+        if search_mode in ['amount', 'price_limit'] and search_data:
+            # Page 0 is summary, then detail pages
+            total_pages = 1 + ((len(search_data.get('purchases', [])) - 1) // items_per_page + 1)
+        elif search_mode == 'normal':
+            total_pages = (len(all_listings) - 1) // items_per_page + 1
+        
+        if total_pages > 1:
             await asyncio.sleep(0.5)
             await bot_message.add_reaction('⬅️')
             await asyncio.sleep(0.5)
             await bot_message.add_reaction('➡️')
 
         message_author_map[bot_message.id] = ctx.author.id
-        message_pages[bot_message.id] = (page, item_name, all_listings)
-        await asyncio.sleep(30)
+        message_pages[bot_message.id] = (page, item_name, all_listings, search_mode, search_data)
+        await asyncio.sleep(300)
         try:
             await bot_message.remove_reaction('♻️', bot.user)
             await bot_message.remove_reaction('⬅️', bot.user)
@@ -263,33 +571,108 @@ async def display_page(ctx, item_name, all_listings, page):
 async def handle_page_turn(message, user, direction):
     message_id = message.id
     if message_id in message_pages:
-        current_page, item_name, all_listings = message_pages[message_id]
+        page_data = message_pages[message_id]
+        current_page = page_data[0]
+        item_name = page_data[1]
+        all_listings = page_data[2]
+        search_mode = page_data[3] if len(page_data) > 3 else 'normal'
+        search_data = page_data[4] if len(page_data) > 4 else None
+        
         new_page = current_page + direction
-        if 0 <= new_page < len(all_listings) // items_per_page:
-            await update_embed(message, user, item_name, all_listings, new_page)
+        
+        # Calculate total pages based on mode
+        if search_mode in ['amount', 'price_limit'] and search_data:
+            total_pages = 1 + ((len(search_data.get('purchases', [])) - 1) // items_per_page + 1)
+        else:
+            total_pages = (len(all_listings) - 1) // items_per_page + 1
+        
+        if 0 <= new_page < total_pages:
+            await update_embed(message, user, item_name, all_listings, new_page, search_mode, search_data)
 
-async def update_embed(message, user, item_name, all_listings, page):
-    start = page * items_per_page
-    end = start + items_per_page
-    top_listings = all_listings[start:end]
+async def update_embed(message, user, item_name, all_listings, page, search_mode='normal', search_data=None):
+    embed = None
+    
+    # Page 0 for amount/price_limit modes shows summary
+    if search_mode in ['amount', 'price_limit'] and page == 0:
+        if search_mode == 'amount':
+            region_summary = search_data['region_summary']
+            total_cost = search_data['total_cost']
+            amount = search_data['amount']
+            
+            embed = discord.Embed(
+                title=f"Search Results for {amount} {item_name.capitalize()}",
+                description=f"**Total Cost:** {total_cost:,} gil",
+                color=discord.Color.green()
+            )
+            
+            for region in ['NA', 'EU', 'OCE', 'JP']:
+                if region in region_summary:
+                    summary = region_summary[region]
+                    field_value = (
+                        f"**Quantity:** {summary['quantity']}\n"
+                        f"**Max Price:** {summary['max_price']:,} gil\n"
+                        f"**Total Cost:** {summary['total_cost']:,} gil"
+                    )
+                    embed.add_field(name=f"**{region}**", value=field_value, inline=True)
+        
+        elif search_mode == 'price_limit':
+            region_summary = search_data['region_summary']
+            total_quantity = search_data['total_quantity']
+            total_cost = search_data['total_cost']
+            price_limit = search_data['price_limit']
+            
+            embed = discord.Embed(
+                title=f"Search Results for {item_name.capitalize()} under {price_limit:,} gil",
+                description=f"**Total Available:** {total_quantity} items for {total_cost:,} gil",
+                color=discord.Color.purple()
+            )
+            
+            for region in ['NA', 'EU', 'OCE', 'JP']:
+                if region in region_summary:
+                    summary = region_summary[region]
+                    field_value = (
+                        f"**Quantity:** {summary['quantity']}\n"
+                        f"**Max Price:** {summary['max_price']:,} gil\n"
+                        f"**Total Cost:** {summary['total_cost']:,} gil"
+                    )
+                    embed.add_field(name=f"**{region}**", value=field_value, inline=True)
+    
+    else:
+        # Display normal listing page or detail pages
+        if search_mode in ['amount', 'price_limit']:
+            if search_data and 'purchases' in search_data:
+                start = (page - 1) * items_per_page
+                end = start + items_per_page
+                top_listings = [p['listing'] for p in search_data['purchases'][start:end]]
+            else:
+                top_listings = []
+        else:
+            start = page * items_per_page
+            end = start + items_per_page
+            top_listings = all_listings[start:end]
 
-    # Create columns
-    quantities = [f"{listing['quantity']}" for listing in top_listings]
-    prices = [f"{format_price_with_commas(listing['pricePerUnit'])}" for listing in top_listings]
-    dc_worlds = [f"{listing['data_center']} - {listing['worldName']}" for listing in top_listings]
+        if top_listings:
+            quantities = [f"{listing['quantity']}" for listing in top_listings]
+            prices = [f"{format_price_with_commas(listing['pricePerUnit'])}" for listing in top_listings]
+            dc_worlds = [f"{listing['data_center']} - {listing['worldName']}" for listing in top_listings]
 
-    embed = discord.Embed(
-        title=f"{item_name.capitalize()} - pg.{page + 1}", 
-        color=discord.Color.blue()
-    )
-    embed.add_field(name="#", value="\n".join(quantities), inline=True)
-    embed.add_field(name="Cost", value="\n".join(prices), inline=True)
-    embed.add_field(name="Location", value="\n".join(dc_worlds), inline=True)
+            region_text = "Showing results for all servers"
+            if search_data and search_data.get('region_filter'):
+                region_text = f"Showing results for {search_data['region_filter']}"
+            
+            embed = discord.Embed(
+                title=f"{item_name.capitalize()} - pg.{page + 1}", 
+                description=region_text,
+                color=discord.Color.blue()
+            )
+            embed.add_field(name="#", value="\n".join(quantities), inline=True)
+            embed.add_field(name="Cost", value="\n".join(prices), inline=True)
+            embed.add_field(name="Location", value="\n".join(dc_worlds), inline=True)
 
-    embed.set_footer(text=f"Requested by {user.display_name}", icon_url=user.avatar.url)
-
-    await message.edit(embed=embed)
-    message_pages[message.id] = (page, item_name, all_listings)
+    if embed:
+        embed.set_footer(text=f"Requested by {user.display_name}", icon_url=user.avatar.url)
+        await message.edit(embed=embed)
+        message_pages[message.id] = (page, item_name, all_listings, search_mode, search_data)
 
 @bot.event
 async def on_ready():
@@ -324,36 +707,42 @@ async def refresh_pairs():
 
 @tasks.loop(minutes=2)
 async def change_status():
-    if crypto_or_custom_stats == "custom":
-        await bot.change_presence(activity=discord.Game(name=random.choice(statuses)))
-    elif crypto_or_custom_stats == "crypto":
-        global current_crypto_index
-        crypto = cryptos[current_crypto_index]
-        price = get_crypto_price(crypto)
-        status_message = f"{crypto}: ${price}"
-        await bot.change_presence(activity=discord.Game(name=status_message))
-        current_crypto_index = (current_crypto_index + 1) % len(cryptos)
+    try:
+        if crypto_or_custom_stats == "custom":
+            await bot.change_presence(activity=discord.Game(name=random.choice(statuses)))
+        elif crypto_or_custom_stats == "crypto":
+            global current_crypto_index
+            crypto = cryptos[current_crypto_index]
+            price = get_crypto_price(crypto)
+            status_message = f"{crypto}: ${price}"
+            await bot.change_presence(activity=discord.Game(name=status_message))
+            current_crypto_index = (current_crypto_index + 1) % len(cryptos)
+    except Exception as e:
+        print(f"Error in change_status loop: {e}")
 
-# Function to fetch the current price of a cryptocurrency
 def get_crypto_price(crypto):
     url = f"https://api.coinbase.com/v2/prices/{crypto}-USD/spot"
-    response = requests.get(url)
-    data = response.json()
-    price = float(data["data"]["amount"])
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()  # Will raise an HTTPError if the status is 4xx/5xx
+        data = response.json()
+        price = float(data["data"]["amount"])
+    except Exception as e:
+        print(f"Error fetching price for {crypto}: {e}")
+        return "N/A"  # or you can return a fallback value, e.g., "0"
     
     # Apply formatting logic based on price ranges
     if price >= 1000:
-        price = f"{price:.0f}"
+        return f"{price:.0f}"
     elif price >= 100:
-        price = f"{price:.2f}"
+        return f"{price:.2f}"
     elif price >= 10:
-        price = f"{price:.3f}"
+        return f"{price:.3f}"
     elif price >= 1:
-        price = f"{price:.4f}"
+        return f"{price:.4f}"
     else:
-        price = f"{price:.8f}"
-    
-    return price
+        return f"{price:.8f}"
+
 
 def get_emoji(change):
     """Returns an emoji based on the percentage change."""
@@ -513,15 +902,30 @@ async def random_coin_list_command(ctx):
     
     await send_embed(ctx, embed)
 
+import re
+import requests
+import discord
+import asyncio
+
 @bot.event
 async def on_message(message):
+    # Ignore the bot's own messages
+    if message.author.bot:
+        return
+
     # --------------------------------------------------------
     # URL processing logic for X (formerly Twitter) links
     # --------------------------------------------------------
-    regex = re.compile(r'(https:\/\/x\.com\/[\w\d\-]+\/status\/[\w\d\-\/\?\=\&]*)|(https:\/\/twitter\.com\/[\w\d\-]+\/status\/[\w\d\-\/\?\=\&]*)')
+    regex = re.compile(
+        r'(https:\/\/x\.com\/[\w\d\-]+\/status\/[\w\d\-\/\?\=\&]*)'
+        r'|(https:\/\/twitter\.com\/[\w\d\-]+\/status\/[\w\d\-\/\?\=\&]*)'
+    )
     match = regex.search(message.content)
+
+    # If there's a Twitter/X link, attempt to fix it
     if match:
         original_url = match.group(0)
+        # Decide which domain to replace
         updated_url = (
             original_url.replace('x.com', 'fixupx.com')
             if 'x.com' in original_url
@@ -529,33 +933,52 @@ async def on_message(message):
         )
 
         try:
-            # For Twitter/X, we still do a GET request to verify
+            # Verify the updated URL is reachable
             response = requests.get(
                 updated_url,
-                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                                       "AppleWebKit/537.36 (KHTML, like Gecko) "
-                                       "Chrome/103.0.0.0 Safari/537.36"},
+                headers={
+                    "User-Agent": (
+                        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/103.0.0.0 Safari/537.36"
+                    )
+                },
                 allow_redirects=True,
                 stream=True
             )
 
+            # If reachable, repost with the fixed link
             if response.ok:
-                formatted_message = f"[{message.author.display_name}]({updated_url}): {message.content.replace(original_url, '').strip()}"
+                formatted_message = (
+                    f"[{message.author.display_name}]({updated_url}): "
+                    f"{message.content.replace(original_url, '').strip()}"
+                )
+
                 files = [await attachment.to_file() for attachment in message.attachments]
+
+                # Delete the original message
                 await message.delete()
+                # Send the new fixed embed
                 bot_message = await message.channel.send(formatted_message, files=files)
+
+                # Optionally react
                 await bot_message.add_reaction('♻️')
+                # Store author info if needed
                 message_author_map[bot_message.id] = message.author.id
+                # Log the link usage
                 log_link(message.author.display_name, original_url)
 
+                # Remove the reaction after 30s
                 await asyncio.sleep(30)
                 try:
                     await bot_message.remove_reaction('♻️', bot.user)
                 except discord.errors.NotFound:
                     pass
+
             else:
                 print(f"URL returned non-OK status: {response.status_code}")
             response.close()
+
         except requests.RequestException as e:
             print(f"Error fetching URL: {e}")
 
@@ -569,13 +992,10 @@ async def on_message(message):
         original_url_social = match_social.group(0)
         updated_url_social = original_url_social  # Default: no change
 
-        # Check which domain we matched, then replace accordingly
+        # Check which domain was matched
         if 'reddit.com' in original_url_social:
             updated_url_social = updated_url_social.replace('reddit.com', 'rxddit.com')
-            
-            # ----------------------------------------------------
-            # SKIP verifying for Reddit (to avoid 403).
-            # ----------------------------------------------------
+            # No verification for Reddit to avoid 403
             formatted_message = (
                 f"[{message.author.display_name}]({updated_url_social}): "
                 f"{message.content.replace(original_url_social, '').strip()}"
@@ -587,7 +1007,6 @@ async def on_message(message):
             message_author_map[bot_message.id] = message.author.id
             log_link(message.author.display_name, original_url_social)
 
-            # Remove reaction after 30s
             await asyncio.sleep(30)
             try:
                 await bot_message.remove_reaction('♻️', bot.user)
@@ -596,13 +1015,16 @@ async def on_message(message):
 
         elif 'tiktok.com' in original_url_social:
             updated_url_social = updated_url_social.replace('tiktok.com', 'vxtiktok.com')
-            # For TikTok, we still do a GET request if you want
             try:
                 response = requests.get(
                     updated_url_social,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                                           "AppleWebKit/537.36 (KHTML, like Gecko) "
-                                           "Chrome/103.0.0.0 Safari/537.36"},
+                    headers={
+                        "User-Agent": (
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                            "AppleWebKit/537.36 (KHTML, like Gecko) "
+                            "Chrome/103.0.0.0 Safari/537.36"
+                        )
+                    },
                     allow_redirects=True,
                     stream=True
                 )
@@ -632,16 +1054,13 @@ async def on_message(message):
         elif 'instagram.com' in original_url_social:
             # Replace domain
             updated_url_social = updated_url_social.replace('instagram.com', 'ddinstagram.com')
-            
-            # If there's no '?' in the updated link, ddinstagram often fails on reels
-            # so append a dummy parameter like '?force=1'
+
+            # If there's no '?', append one for ddinstagram
             if '?' not in updated_url_social:
-                # If the link already ends with a '/', we can keep that slash
-                # or add one if needed. Then add '?force=1'.
                 if not updated_url_social.endswith('/'):
                     updated_url_social += '/'
                 updated_url_social += '?force=1'
-            
+
             try:
                 response = requests.get(
                     updated_url_social,
@@ -680,11 +1099,10 @@ async def on_message(message):
 
 
     # --------------------------------------------------------
-    # Monitor the specified channel for alerts, including messages from webhooks
+    # Monitor the specified channel for alerts
     # --------------------------------------------------------
     if message.channel.id == CHANNEL_ID:
         content = message.content
-
         if is_price_alert(content):
             if show_pricing_alerts:
                 print(f"Detected price alert: {content}")
@@ -698,9 +1116,10 @@ async def on_message(message):
                 print(f"Ignored message: {content}")
 
     # --------------------------------------------------------
-    # Process other bot commands in any channel
+    # Finally, process bot commands in any channel
     # --------------------------------------------------------
     await bot.process_commands(message)
+
 
 @bot.event
 async def on_reaction_add(reaction, user):
@@ -767,13 +1186,165 @@ async def xhelp_command(ctx):
     # Add Universalis API commands if use_ffxiv_universalis_api is True
     if use_ffxiv_universalis_api:
         commands_value += (
-            "\n`!search <item>` - Search for an item using the FFXIV Universalis API."
+            "\n`!search <item>` - Search for an item using the FFXIV Universalis API.\n"
+            "`!search <region> <item>` - Search in a specific region (NA/EU/OCE/JP).\n"
+            "`!search <amount> <item>` - Find cheapest way to buy X items.\n"
+            "`!search <item> <price>` - Find items under price limit.\n"
+            "`!howtosearch` or `!hts` - Learn how to use the search command."
         )
+    
+    # Add !keys command
+    commands_value += "\n`!keys` - Shows current Dalamud keys from Kamori."
 
     # Add the final list of commands to the embed
     embed.add_field(name="Commands", value=commands_value)
     
     # Send the embed using the custom send_embed function
+    await send_embed(ctx, embed)
+
+@bot.command(name='keys')
+async def keys_command(ctx):
+    """Fetches and displays current Dalamud keys from Kamori"""
+    try:
+        # Fetch data from Kamori API
+        kamori_url = "https://kamori.goats.dev/Dalamud/Release/Meta"
+        async with aiohttp.ClientSession() as session:
+            async with session.get(kamori_url, timeout=10) as response:
+                if response.status != 200:
+                    embed = discord.Embed(
+                        title="Error",
+                        description="Failed to fetch Dalamud keys from Kamori.",
+                        color=discord.Color.red()
+                    )
+                    await send_embed(ctx, embed)
+                    return
+                
+                data = await response.json()
+        
+        # Sections to check for keys (excluding release which has null keys)
+        watch_sections = ["api13", "api14", "api15", "net9", "stg", "imgui-bindings"]
+        
+        # Build the embed message
+        embed = discord.Embed(
+            title="Current Dalamud Keys",
+            description="Available keys from Kamori",
+            color=discord.Color.blue()
+        )
+        
+        sections_with_keys = []
+        
+        for section_name in watch_sections:
+            section = data.get(section_name, {})
+            key = section.get('key')
+            
+            # Only include sections that have a key
+            if key:
+                track = section.get('track', 'N/A')
+                
+                # Format section title
+                if section_name == 'stg':
+                    section_title = f"`{section_name}` (Beta)"
+                elif section_name == 'api14':
+                    section_title = f"`{section_name}` (Dev)"
+                else:
+                    section_title = f"`{section_name}`"
+                
+                # Format the field value
+                field_value = (
+                    f"- **\"DalamudBetaKey\"**: \"{key}\",\n"
+                    f"- **\"DalamudBetaKind\"**: \"{track}\","
+                )
+                
+                embed.add_field(
+                    name=f"**Section**: {section_title}",
+                    value=field_value,
+                    inline=False
+                )
+                sections_with_keys.append(section_name)
+        
+        # If no keys found, show a message
+        if not sections_with_keys:
+            embed.description = "No active keys found at this time."
+        
+        await send_embed(ctx, embed)
+        
+    except asyncio.TimeoutError:
+        embed = discord.Embed(
+            title="Error",
+            description="Request timed out while fetching Dalamud keys.",
+            color=discord.Color.red()
+        )
+        await send_embed(ctx, embed)
+    except Exception as e:
+        print(f"Error in !keys command: {e}")
+        embed = discord.Embed(
+            title="Error",
+            description=f"An error occurred while fetching keys: {str(e)}",
+            color=discord.Color.red()
+        )
+        await send_embed(ctx, embed)
+
+@bot.command(name='howtosearch', aliases=['hts'])
+async def howtosearch_command(ctx):
+    embed = discord.Embed(
+        title="How to Search for FFXIV Items",
+        description="Search for items using the FFXIV Universalis API with various filters and options.",
+        color=0x008080
+    )
+    
+    embed.add_field(
+        name="📋 Basic Search",
+        value=(
+            "`!search <item>` - Search all regions\n"
+            "Example: `!search Boiled Egg`"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🌍 Region-Specific Search",
+        value=(
+            "`!search <region> <item>` - Search specific region\n"
+            "Regions: **NA**, **EU**, **OCE**, **JP**\n"
+            "Example: `!search NA Boiled Egg`"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="🔢 Amount-Based Search",
+        value=(
+            "`!search [region] <amount> <item>` - Find cheapest way to buy X items\n"
+            "Shows total cost breakdown by region\n"
+            "Examples:\n"
+            "• `!search 50 Boiled Egg` - Buy 50 eggs (all regions)\n"
+            "• `!search NA 50 Boiled Egg` - Buy 50 eggs (NA only)"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="💰 Price Limit Search",
+        value=(
+            "`!search [region] <item> <price>` - Find items under price limit\n"
+            "Shows how many items available under max price\n"
+            "Examples:\n"
+            "• `!search Boiled Egg 500` - Eggs under 500 gil each\n"
+            "• `!search NA Boiled Egg 500` - NA only, under 500 gil"
+        ),
+        inline=False
+    )
+    
+    embed.add_field(
+        name="📄 Navigation",
+        value=(
+            "Use ⬅️ and ➡️ reactions to navigate pages\n"
+            "Page 1 shows summary, Page 2+ shows detailed listings\n"
+            "Use ♻️ to delete the search results"
+        ),
+        inline=False
+    )
+    
     await send_embed(ctx, embed)
 
 @bot.command()
