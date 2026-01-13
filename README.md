@@ -2,21 +2,31 @@
 
 OmniBot is a versatile and powerful Discord bot designed to enhance your server's experience by offering multiple features, including:
 
-1. **Link Embed Fixing**: Automatically detects and fixes X (formerly Twitter) URLs in Discord messages by replacing them with FxTwitter or TwitFix URLs to restore rich embeds.
+1. **Link Embed Fixing**: Automatically detects and fixes URLs for X (formerly Twitter), Reddit, TikTok, and Instagram by replacing them with embed-friendly alternatives (FxTwitter, rxddit, vxtiktok, ddinstagram) to restore rich embeds.
 2. **Cryptocurrency Monitoring**: Monitors volatile cryptocurrency prices on Coinbase and provides real-time alerts for selected trading pairs.
-3. **FFXIV Universalis API Integration**: Allows users to search for Final Fantasy XIV in-game items using the Universalis API, displaying prices across data centers.
-4. **Interactive Commands**: Offers fun and interactive commands, including a Magic 8-Ball, random number/percentage generators, and random coin selection from a predefined list.
+3. **FFXIV Universalis API Integration**: Advanced item searching with amount-based and price-limit queries across all data centers (NA, EU, OCE, JP).
+4. **Interactive Commands**: Offers fun and interactive commands, including a Magic 8-Ball, random number/percentage generators, random coin selection, and Dalamud key fetching.
 5. **Logging**: Maintains a log of all corrected URLs and bot interactions with timestamps.
 6. **User Interaction**: Allows users to delete bot messages by reacting with a specific emoji.
 
-## Features:
-- **Link Replacement**: Automatically converts X/Twitter URLs into FxTwitter or TwitFix URLs for better embed display in Discord.
+## Features
+
+- **Multi-Platform Link Replacement**:
+  - **X/Twitter**: Converts to FxTwitter or TwitFix URLs
+  - **Reddit**: Converts to rxddit.com for better embeds
+  - **TikTok**: Converts to vxtiktok.com for video embeds
+  - **Instagram**: Converts to ddinstagram.com for post embeds
 - **Crypto Alerts**: Provides alerts for cryptocurrency price volatility based on your tracked pairs.
-- **FFXIV Item Search**: Search for Final Fantasy XIV items using Universalis API, displaying data center-specific prices.
+- **Advanced FFXIV Item Search**:
+  - Basic search across all regions or specific data centers (NA, EU, OCE, JP)
+  - Amount-based search to find the cheapest way to buy X items
+  - Price-limit search to find items under a specific gil amount
+  - Summary and detailed pagination views
+- **Dalamud Keys**: Fetch current Dalamud beta keys from Kamori API
 - **Magic 8-Ball**: Ask the bot any question and get a random answer from the Magic 8-Ball.
 - **Random Number/Percentage**: Generate random numbers or percentages on command.
 - **Random Coin Selection**: Randomly pick a cryptocurrency trading pair from a predefined list.
-- **Status Rotation**: Rotates the bot's status message every few minutes from a predefined list.
+- **Status Rotation**: Rotates the bot's status message every few minutes showing crypto prices or custom statuses.
 
 **Invite The Bot To Your Server If You Don't Want To Host**: [Invite Bot](https://discord.com/oauth2/authorize?client_id=1264424150664089611&permissions=3271680&scope=bot)
 
@@ -35,13 +45,13 @@ OmniBot is a versatile and powerful Discord bot designed to enhance your server'
 ## How to Install and Run:
 1. **Clone the Repository**:
     ```bash
-    git clone https://github.com/yourusername/discord-omnibot.git
+    git clone https://github.com/xa-io/discord-omnibot
     cd discord-omnibot
     ```
 
 2. **Install Dependencies**:
     ```bash
-    pip install -r requirements.txt
+    pip install discord.py python-dotenv requests aiohttp
     ```
 
 3. **Create a `.env` File**:
@@ -59,21 +69,58 @@ OmniBot is a versatile and powerful Discord bot designed to enhance your server'
     python bot.py
     ```
 
-## Usage:
-- Invite the bot to your server and use the `!xhelp` command to see a list of available commands. The bot will automatically fix X/Twitter links, monitor cryptocurrency prices, and respond to FFXIV item search requests.
+## Usage
 
-## Commands:
-- `!xhelp` - Show help and command list.
-- `!status` - Show the bot's current status.
-- `!stats` - Display the number of links corrected by the bot.
-- `!8ball <question>` - Ask the Magic 8-Ball a question.
-- `!random` - Get a random number between 1 and 1000.
-- `!randomp` - Get a random percentage between 1% and 100%.
-- `!randomcoin` - Pick a random cryptocurrency from the predefined list.
-- `!randomcoinlist` - List all possible cryptocurrencies for `!randomcoin`.
-- `!search <item>` - Search for an FFXIV item using the Universalis API.
+Invite the bot to your server and use the `!xhelp` command to see a list of available commands. The bot will automatically fix X/Twitter/Reddit/TikTok/Instagram links, monitor cryptocurrency prices, and respond to FFXIV item search requests.
 
-## Consider Donating:
+### FFXIV Search Examples
+
+- `!search Boiled Egg` - Search all regions for Boiled Egg
+- `!search NA Boiled Egg` - Search only North America
+- `!search 50 Boiled Egg` - Find cheapest 50 eggs (shows total cost by region)
+- `!search NA 100 Glamour Prism` - Find cheapest 100 Glamour Prisms in NA
+- `!search Boiled Egg 500` - Find all eggs under 500 gil each
+- `!search EU Materia 1000` - Find Materia under 1000 gil in EU
+
+**Navigation**: Use ⬅️ and ➡️ reactions to navigate pages. Page 1 shows summary, Page 2+ shows detailed listings. Use ♻️ to delete results.
+
+## Commands
+
+### General Commands
+
+- `!xhelp` - Show help and command list
+- `!status` - Show the bot's current status
+- `!stats` - Display the number of links corrected by the bot
+
+### Fun Commands
+
+- `!8ball <question>` - Ask the Magic 8-Ball a question
+- `!random` - Get a random number between 1 and 1000
+- `!randomp` - Get a random percentage between 1% and 100%
+
+### Crypto Commands
+
+- `!randomcoin` - Pick a random cryptocurrency from the predefined list
+- `!randomcoinlist` - List all possible cryptocurrencies for `!randomcoin`
+- `!coin <symbol>` - Show last 10 alerts for a specific coin
+- `!last10` - Display the last 10 volatile coins
+
+### FFXIV Universalis API Commands
+
+- `!search <item>` - Search for an item across all regions
+- `!search <region> <item>` - Search in a specific region (NA/EU/OCE/JP)
+- `!search <amount> <item>` - Find the cheapest way to buy X items (shows summary by region)
+- `!search <region> <amount> <item>` - Amount search in specific region
+- `!search <item> <price>` - Find items under a specific gil price limit
+- `!search <region> <item> <price>` - Price limit search in specific region
+- `!howtosearch` or `!hts` - Learn how to use the search command with examples
+
+### Dalamud Commands
+
+- `!keys` - Shows current Dalamud keys from Kamori API
+
+## Consider Donating
+
 If you find OmniBot helpful, consider supporting the development with a donation:
 
 - **BTC**: `bc1qwjy0hl4z9c930kgy4nud2fp0nw8m6hzknvumgg`
