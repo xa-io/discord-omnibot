@@ -1,5 +1,7 @@
 # Discord OmniBot
 
+**Privacy:** [Read the Privacy Policy](PRIVACY.md)
+
 OmniBot is a versatile and powerful Discord bot designed to enhance your server's experience by offering multiple features, including:
 
 1. **Link Embed Fixing**: Automatically detects and fixes URLs for X (formerly Twitter), Reddit, TikTok, and Instagram by replacing them with embed-friendly alternatives (FxTwitter, rxddit, vxtiktok, ddinstagram) to restore rich embeds.
