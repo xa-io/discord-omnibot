@@ -1,6 +1,7 @@
 # Privacy Policy for 𝕏. / Discord OmniBot
 
-Effective date: August 11, 2026  
+Effective date: August 11, 2026
+
 Last updated: August 11, 2026
 
 This Privacy Policy explains how the Discord application **𝕏.**, also described as **Discord OmniBot** (Discord application ID `1264424150664089611`), accesses, uses, shares, stores, and deletes data when it is installed in or used from a Discord server or direct message.
@@ -94,4 +95,3 @@ This policy may be updated when the app's features or data practices change. The
 ## Contact
 
 Privacy questions and data requests can be submitted through the [Discord OmniBot issue tracker](https://github.com/xa-io/discord-omnibot/issues). Do not post secrets or sensitive personal information in a public issue.
-
